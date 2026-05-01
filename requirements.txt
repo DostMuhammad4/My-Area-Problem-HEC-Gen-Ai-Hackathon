@@ -1,0 +1,16 @@
+groq
+langchain
+langchain-groq
+langchain-community
+chromadb
+sentence-transformers
+gradio
+pymupdf
+folium
+openai-whisper
+python-dotenv
+transformers
+Pillow
+torch
+torchvision
+pyngrok
