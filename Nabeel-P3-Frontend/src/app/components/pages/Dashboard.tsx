@@ -162,10 +162,46 @@ export function Dashboard() {
             <p className="text-sm text-gray-500 mb-4">
               {mapPoints.length} complaints across Pakistan
             </p>
-            <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-200">
-              <p className="text-gray-400">
-                Map coming soon — {mapPoints.length} data points loaded ✅
-              </p>
+            <div className="space-y-3">
+
+              <div className="h-[380px] rounded-xl overflow-hidden border-2 border-gray-200">
+                <iframe
+                  title="Pakistan Complaints Map"
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  src="https://www.openstreetmap.org/export/embed.html?bbox=60.87%2C23.63%2C77.84%2C37.09&layer=mapnik"
+                  className="border-0"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {Object.entries(
+                  mapPoints.reduce((acc: any, point: any) => {
+                    acc[point.category] = (acc[point.category] || 0) + 1;
+                    return acc;
+                  }, {})
+                ).slice(0, 6).map(([category, count]) => (
+                  <div key={category} 
+                       className="bg-gray-50 rounded-lg p-3 flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-600 flex-1">
+                      {category}
+                    </span>
+                    <span className="text-xs font-bold text-teal-600">
+                      {count as number}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-4 text-xs text-gray-500 px-1">
+                <span>📍 {mapPoints.length} total complaints</span>
+                <span>🔴 {mapPoints.filter((p: any) => 
+                  p.severity === 'High').length} high severity</span>
+                <span>✅ {mapPoints.filter((p: any) => 
+                  p.status === 'Resolved').length} resolved</span>
+              </div>
+
             </div>
           </div>
 
@@ -266,7 +302,7 @@ function TopBar() {
   return (
     <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-6 lg:px-8 py-4">
       <div className="flex items-center justify-end gap-4">
-        <button className="relative p-2 hover:bg-muted rounded-lg transition-colors">
+        <button className="relative p-2 hover:bg-muted rounded-lg transition-colors" title="Notifications">
           <Bell className="w-5 h-5 text-muted-foreground" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
         </button>
