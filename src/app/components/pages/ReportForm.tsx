@@ -208,6 +208,7 @@ export function ReportForm() {
 function ProgressBar({ step }: { step: number }) {
   const displayStep = Math.min(step, 3);
   const percent = step === 1 ? 33 : step === 2 ? 66 : 100;
+  const progressWidthClass = step === 1 ? 'w-1/3' : step === 2 ? 'w-2/3' : 'w-full';
 
   return (
     <div className="mb-8">
@@ -217,8 +218,7 @@ function ProgressBar({ step }: { step: number }) {
       </div>
       <div className="h-2 bg-muted rounded-full overflow-hidden">
         <div
-          className="h-full bg-primary transition-all duration-500"
-          style={{ width: `${percent}%` }}
+          className={`h-full bg-primary transition-all duration-500 ${progressWidthClass}`}
         ></div>
       </div>
     </div>
@@ -292,6 +292,9 @@ function Step1({ formData, setFormData, categories, isRecording, setIsRecording,
                 />
                 <button
                   onClick={() => removePhoto(i)}
+                  type="button"
+                  aria-label="Remove uploaded photo"
+                  title="Remove uploaded photo"
                   className="absolute top-2 right-2 w-6 h-6 bg-destructive rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <X className="w-4 h-4 text-white" />
@@ -331,13 +334,97 @@ function Step1({ formData, setFormData, categories, isRecording, setIsRecording,
 }
 
 function Step2({ formData, setFormData, handleSubmit, isSubmitting }: any) {
-  const detectLocation = () => {
-    setFormData({
-      ...formData,
-      street: 'Street 5',
-      area: 'F-8 Markaz',
-      city: 'Islamabad'
-    });
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationDetected, setLocationDetected] = useState(false);
+  const [mapCoords, setMapCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+
+  const detectLocation = async () => {
+    if (!navigator.geolocation) {
+      alert('Location not supported by your browser');
+      return;
+    }
+
+    setLocationLoading(true);
+    setLocationDetected(false);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+            {
+              headers: {
+                'Accept-Language': 'en',
+                'User-Agent': 'MyAreaProblems/1.0'
+              }
+            }
+          );
+          const data = await response.json();
+          const addr = data.address;
+
+          const street = [
+            addr.road,
+            addr.pedestrian,
+            addr.house_number
+          ].filter(Boolean).join(' ') || '';
+
+          const area = [
+            addr.suburb,
+            addr.neighbourhood,
+            addr.quarter,
+            addr.village
+          ].filter(Boolean)[0] || addr.county || '';
+
+          const city =
+            addr.city ||
+            addr.town ||
+            addr.municipality ||
+            addr.state_district ||
+            addr.state || '';
+
+          setFormData((prev: any) => ({
+            ...prev,
+            street: street,
+            area: area,
+            city: city,
+          }));
+
+          setLocationDetected(true);
+          setMapCoords({ lat: latitude, lng: longitude });
+
+        } catch {
+          alert('Could not fetch address. Please enter manually.');
+        } finally {
+          setLocationLoading(false);
+        }
+      },
+      (error) => {
+        setLocationLoading(false);
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            alert('Please allow location access in browser settings.');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            alert('Location unavailable. Please enter manually.');
+            break;
+          case error.TIMEOUT:
+            alert('Location request timed out. Try again.');
+            break;
+          default:
+            alert('Could not get location. Please enter manually.');
+        }
+      },
+      {
+        timeout: 10000,
+        maximumAge: 0,
+        enableHighAccuracy: true
+      }
+    );
   };
 
   return (
@@ -345,15 +432,47 @@ function Step2({ formData, setFormData, handleSubmit, isSubmitting }: any) {
       <Card>
         <h2 className="text-xl font-bold text-foreground mb-4">Issue Location</h2>
 
-        <Button
+        <button
+          type="button"
           onClick={detectLocation}
-          variant="outline"
-          fullWidth
-          className="mb-6"
+          disabled={locationLoading}
+          className={`w-full py-4 border-2 border-dashed rounded-xl flex items-center justify-center gap-3 font-semibold transition-all duration-200 ${locationDetected ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-300 hover:border-teal-500 hover:bg-teal-50 text-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
         >
-          <MapPin className="w-5 h-5" />
-          Detect My Location
-        </Button>
+          {locationLoading ? (
+            <>
+              <svg className="animate-spin h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              <span>Fetching your location...</span>
+            </>
+          ) : locationDetected ? (
+            <>
+              <span>✅</span>
+              <span>Location Detected! Click to refresh</span>
+            </>
+          ) : (
+            <>
+              <span>📍</span>
+              <span>Detect My Location Automatically</span>
+            </>
+          )}
+        </button>
+
+        {locationDetected && (
+          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+            <span className="text-green-600">✅</span>
+            <div>
+              <p className="text-xs text-green-700 font-semibold">
+                Location detected successfully!
+              </p>
+              <p className="text-xs text-green-600 mt-0.5">
+                {[formData.street, formData.area, formData.city]
+                  .filter(Boolean).join(', ')}
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <Input
@@ -373,6 +492,7 @@ function Step2({ formData, setFormData, handleSubmit, isSubmitting }: any) {
               <select
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                title="Select city"
                 className="w-full px-4 py-3 bg-input-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">Select City</option>
@@ -396,11 +516,11 @@ function Step2({ formData, setFormData, handleSubmit, isSubmitting }: any) {
           </div>
 
           {(formData.street || formData.area || formData.city) && (
-            <div className="mt-3 p-3 bg-teal-50 rounded-lg border border-teal-200">
-              <p className="text-xs text-teal-600 font-semibold">
+            <div className="p-3 bg-teal-50 rounded-lg border border-teal-200">
+              <p className="text-xs text-teal-600 font-semibold mb-1">
                 📍 Location being sent to AI:
               </p>
-              <p className="text-sm text-teal-800 font-medium mt-1">
+              <p className="text-sm text-teal-800 font-medium">
                 {[formData.street, formData.area, formData.city]
                   .filter(Boolean).join(', ')}
               </p>
@@ -408,11 +528,40 @@ function Step2({ formData, setFormData, handleSubmit, isSubmitting }: any) {
           )}
         </div>
 
-        <div className="mt-6 h-64 bg-muted rounded-lg flex items-center justify-center">
-          <div className="text-center text-muted-foreground">
-            <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>Map Preview</p>
+        <div className="mt-4 rounded-xl overflow-hidden border-2 border-gray-200 bg-gray-50">
+          <div className="px-4 py-2 bg-white border-b flex items-center justify-between">
+            <p className="text-sm font-semibold text-gray-700">
+              🗺️ Map Preview
+            </p>
+            {mapCoords && (
+              <p className="text-xs text-gray-400">
+                {mapCoords.lat.toFixed(4)}, {mapCoords.lng.toFixed(4)}
+              </p>
+            )}
           </div>
+
+          {mapCoords ? (
+            <iframe
+              key={`${mapCoords.lat}-${mapCoords.lng}`}
+              title="OpenStreetMap location preview"
+              width="100%"
+              height="250"
+              frameBorder="0"
+              scrolling="no"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapCoords.lng - 0.01}%2C${mapCoords.lat - 0.01}%2C${mapCoords.lng + 0.01}%2C${mapCoords.lat + 0.01}&layer=mapnik&marker=${mapCoords.lat}%2C${mapCoords.lng}`}
+              className="border-0"
+            />
+          ) : (
+            <div className="h-48 flex flex-col items-center justify-center gap-2">
+              <span className="text-4xl">📍</span>
+              <p className="text-sm text-gray-400 font-medium">
+                Click "Detect My Location" to see map
+              </p>
+              <p className="text-xs text-gray-300">
+                Or enter address manually above
+              </p>
+            </div>
+          )}
         </div>
       </Card>
 
