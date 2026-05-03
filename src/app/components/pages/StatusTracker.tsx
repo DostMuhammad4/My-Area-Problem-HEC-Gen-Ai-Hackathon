@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
+import { getHistory } from '../../../services/api';
 import {
   Search, MapPin, Calendar, Building2, CheckCircle, Loader2,
   Clock, Mail, FileText, ExternalLink, ArrowLeft, Zap
@@ -14,71 +15,30 @@ export function StatusTracker() {
   const [trackingId, setTrackingId] = useState('');
   const [searchResult, setSearchResult] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trackingId) return;
 
     setIsSearching(true);
-    setTimeout(() => {
-      setSearchResult({
-        id: 'MAP-2024-047',
-        category: 'Road Infrastructure',
-        description: 'Major potholes on main road in F-8 Markaz causing traffic issues and safety hazards',
-        location: 'Street 5, F-8 Markaz',
-        city: 'Islamabad',
-        authority: 'CDA Islamabad',
-        email: 'complaints@cda.gov.pk',
-        status: 'In Progress',
-        submittedDate: '2024-05-01T10:30:00',
-        timeline: [
-          {
-            stage: 'Submitted',
-            title: 'Complaint Received',
-            description: 'Complaint received and logged in the system',
-            timestamp: '2024-05-01T10:30:00',
-            status: 'completed'
-          },
-          {
-            stage: 'AI Processing',
-            title: 'AI Analysis Complete',
-            description: 'Issue classified as Road Infrastructure. Authority identified: CDA Islamabad',
-            timestamp: '2024-05-01T10:31:00',
-            status: 'completed'
-          },
-          {
-            stage: 'Email Drafted',
-            title: 'Formal Complaint Letter Generated',
-            description: 'AI drafted formal complaint email with all details',
-            timestamp: '2024-05-01T10:32:00',
-            status: 'completed'
-          },
-          {
-            stage: 'Sent to Authority',
-            title: 'Email Sent to CDA Islamabad',
-            description: 'Complaint email delivered to complaints@cda.gov.pk',
-            timestamp: '2024-05-01T10:33:00',
-            status: 'active'
-          },
-          {
-            stage: 'Response Received',
-            title: 'Awaiting Authority Response',
-            description: 'Waiting for acknowledgment from the authority',
-            timestamp: null,
-            status: 'pending'
-          }
-        ],
-        emailPreview: `To: CDA Islamabad <complaints@cda.gov.pk>
-Subject: Complaint Regarding Road Infrastructure - Islamabad F-8
-
-Dear Sir/Madam,
-
-I am writing to report a serious issue regarding road infrastructure in my area...
-
-(Full email content available in system)`
-      });
+    setError('');
+    try {
+      const history = await getHistory();
+      const found = history.find(
+        (c: any) => c.complaint_id.toLowerCase() === trackingId.toLowerCase()
+      );
+      if (found) {
+        setSearchResult(found);
+      } else {
+        setError('No complaint found with this ID');
+        setSearchResult(null);
+      }
+    } catch {
+      setError('Could not fetch data. Try again.');
+    } finally {
       setIsSearching(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -116,14 +76,20 @@ I am writing to report a serious issue regarding road infrastructure in my area.
           </form>
         </Card>
 
+        {error && (
+          <Card className="mb-8 border-destructive/50 bg-destructive/5">
+            <p className="text-destructive">{error}</p>
+          </Card>
+        )}
+
         {searchResult ? (
           <>
             <Card className="mb-6">
               <div className="flex items-start justify-between mb-6">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <h2 className="text-2xl font-bold text-foreground">{searchResult.id}</h2>
-                    <Badge variant="processing" pulse>
+                    <h2 className="text-2xl font-bold text-foreground">{searchResult.complaint_id}</h2>
+                    <Badge variant={searchResult.status?.toLowerCase() === 'resolved' ? 'success' : searchResult.status?.toLowerCase() === 'processing' ? 'processing' : 'info'} pulse={searchResult.status?.toLowerCase() === 'processing'}>
                       {searchResult.status}
                     </Badge>
                   </div>
@@ -132,7 +98,7 @@ I am writing to report a serious issue regarding road infrastructure in my area.
                 <div className="text-right">
                   <div className="text-sm text-muted-foreground mb-1">Submitted</div>
                   <div className="text-sm font-medium text-foreground">
-                    {new Date(searchResult.submittedDate).toLocaleDateString('en-US', {
+                    {new Date(searchResult.timestamp).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric'
@@ -141,60 +107,59 @@ I am writing to report a serious issue regarding road infrastructure in my area.
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-4 mb-6">
+              <div className="grid md:grid-cols-2 gap-4">
                 <InfoItem
                   icon={<MapPin className="w-4 h-4" />}
                   label="Location"
-                  value={`${searchResult.location}, ${searchResult.city}`}
+                  value={searchResult.location}
                 />
                 <InfoItem
-                  icon={<Building2 className="w-4 h-4" />}
-                  label="Authority"
-                  value={searchResult.authority}
+                  icon={<FileText className="w-4 h-4" />}
+                  label="Urgency Level"
+                  value={searchResult.urgency || 'Not specified'}
                 />
-                <InfoItem
-                  icon={<Mail className="w-4 h-4" />}
-                  label="Email"
-                  value={searchResult.email}
-                />
-              </div>
-
-              <div className="bg-muted/50 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-foreground mb-2">Issue Description</h3>
-                <p className="text-sm text-muted-foreground">{searchResult.description}</p>
-              </div>
-            </Card>
-
-            <Card className="mb-6">
-              <h2 className="text-xl font-bold text-foreground mb-6">Complaint Timeline</h2>
-              <div className="space-y-6">
-                {searchResult.timeline.map((item: any, index: number) => (
-                  <TimelineItem
-                    key={index}
-                    item={item}
-                    isLast={index === searchResult.timeline.length - 1}
-                  />
-                ))}
               </div>
             </Card>
 
             <Card>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-foreground">Email Preview</h2>
-                <Badge variant="processing">
-                  <Zap className="w-3 h-3" />
-                  AI Generated
-                </Badge>
+                <h2 className="text-lg font-bold text-foreground">Complaint Status</h2>
               </div>
-              <div className="bg-muted rounded-lg p-4 mb-4">
-                <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
-                  {searchResult.emailPreview}
-                </pre>
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle className="w-5 h-5 text-success" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Complaint Registered</h3>
+                    <p className="text-sm text-muted-foreground">Your complaint has been received and logged in the system</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {new Date(searchResult.timestamp).toLocaleString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    searchResult.status?.toLowerCase() === 'processing' ? 'bg-processing/10' : 'bg-muted'
+                  }`}>
+                    {searchResult.status?.toLowerCase() === 'processing' ? (
+                      <Loader2 className="w-5 h-5 text-processing animate-spin" />
+                    ) : (
+                      <Clock className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">Processing Status</h3>
+                    <p className="text-sm text-muted-foreground">Your complaint is {searchResult.status?.toLowerCase() || 'pending'}</p>
+                  </div>
+                </div>
               </div>
-              <Button variant="outline" size="sm">
-                <ExternalLink className="w-4 h-4" />
-                View Full Email
-              </Button>
             </Card>
           </>
         ) : (

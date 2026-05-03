@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
@@ -36,14 +36,14 @@ function Navbar({ navigate }: { navigate: any }) {
             <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
               <MapPin className="w-4 h-4 md:w-6 md:h-6 text-white" />
             </div>
-            <span className="text-base md:text-xl font-bold text-foreground">My Area Problems</span>
+            <span className="text-base md:text-xl font-bold text-foreground font-[\'Playfair Display\']">My Area Problems</span>
           </div>
 
           <div className="hidden lg:flex items-center gap-8">
-            <a href="#home" className="text-foreground hover:text-primary transition-colors text-sm">Home</a>
-            <a href="#how-it-works" className="text-foreground hover:text-primary transition-colors text-sm">How It Works</a>
-            <a href="#impact" className="text-foreground hover:text-primary transition-colors text-sm">Impact</a>
-            <a href="#about" className="text-foreground hover:text-primary transition-colors text-sm">About</a>
+            <a href="#home" className="text-foreground hover:text-primary transition-colors text-sm font-[\'Nunito\']">Home</a>
+            <a href="#how-it-works" className="text-foreground hover:text-primary transition-colors text-sm font-[\'Nunito\']">How It Works</a>
+            <a href="#impact" className="text-foreground hover:text-primary transition-colors text-sm font-[\'Nunito\']">Impact</a>
+            <a href="#about" className="text-foreground hover:text-primary transition-colors text-sm font-[\'Nunito\']">About</a>
           </div>
 
           <div className="flex items-center gap-2 md:gap-3">

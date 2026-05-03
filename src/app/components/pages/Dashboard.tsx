@@ -1,7 +1,9 @@
-import { useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
+import { getHistory, getHeatmapData } from '../../../services/api';
 import {
   LayoutDashboard, PlusCircle, FileText, TrendingUp, Settings,
   LogOut, Bell, MapPin, Calendar, ArrowRight, Search, Package
@@ -9,30 +11,39 @@ import {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const [userComplaints, setUserComplaints] = useState<any[]>([]);
+  const [complaintsLoading, setComplaintsLoading] = useState(true);
+  const [mapPoints, setMapPoints] = useState<any[]>([]);
 
-  const complaints = [
-    {
-      id: 'MAP-2024-047',
-      category: 'Road Infrastructure',
-      location: 'Islamabad, F-8',
-      status: 'Sent',
-      date: '2024-05-01'
-    },
-    {
-      id: 'MAP-2024-046',
-      category: 'Water Supply',
-      location: 'Lahore, DHA',
-      status: 'Resolved',
-      date: '2024-04-28'
-    },
-    {
-      id: 'MAP-2024-045',
-      category: 'Electricity',
-      location: 'Karachi, Gulshan',
-      status: 'Processing',
-      date: '2024-04-25'
-    }
-  ];
+  useEffect(() => {
+    getHistory()
+      .then(data => {
+        setUserComplaints(data);
+        setComplaintsLoading(false);
+      })
+      .catch(() => setComplaintsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    getHeatmapData()
+      .then(data => {
+        setMapPoints(data);
+      })
+      .catch(() => setMapPoints([]));
+  }, []);
+
+  const totalComplaints = userComplaints.length;
+  const resolvedComplaints = userComplaints.filter(
+    c => c.status?.toLowerCase() === 'resolved'
+  ).length;
+  const openComplaints = userComplaints.filter(
+    c => c.status?.toLowerCase() === 'open' || 
+         c.status?.toLowerCase() === 'processing'
+  ).length;
+  const successRate = totalComplaints > 0 
+    ? Math.round((resolvedComplaints / totalComplaints) * 100) 
+    : 0;
+  const recentComplaints = userComplaints.slice(-3).reverse();
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -59,25 +70,25 @@ export function Dashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
             <StatCard
               title="Total Complaints"
-              value="12"
+              value={complaintsLoading ? '...' : totalComplaints}
               icon={<FileText className="w-6 h-6" />}
               color="bg-primary"
             />
             <StatCard
               title="In Process"
-              value="3"
+              value={complaintsLoading ? '...' : openComplaints}
               icon={<TrendingUp className="w-6 h-6" />}
               color="bg-processing"
             />
             <StatCard
               title="Resolved"
-              value="8"
+              value={complaintsLoading ? '...' : resolvedComplaints}
               icon={<FileText className="w-6 h-6" />}
               color="bg-success"
             />
             <StatCard
               title="Success Rate"
-              value="89%"
+              value={complaintsLoading ? '...' : successRate + '%'}
               icon={<TrendingUp className="w-6 h-6" />}
               color="bg-accent"
             />
@@ -89,7 +100,7 @@ export function Dashboard() {
               <Button variant="ghost" size="sm">View All</Button>
             </div>
 
-            {complaints.length > 0 ? (
+            {recentComplaints.length > 0 ? (
               <div className="overflow-x-auto -mx-6 md:mx-0">
                 <table className="w-full min-w-[640px]">
                   <thead>
@@ -103,34 +114,36 @@ export function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {complaints.map((complaint) => (
-                      <tr key={complaint.id} className="border-b border-border hover:bg-muted/50 transition-colors">
-                        <td className="py-4 px-4 text-sm font-medium text-foreground">{complaint.id}</td>
+                    {recentComplaints.map((complaint) => (
+                      <tr key={complaint.complaint_id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                        <td className="py-4 px-4 text-sm font-medium text-foreground">{complaint.complaint_id}</td>
                         <td className="py-4 px-4 text-sm text-foreground">{complaint.category}</td>
                         <td className="py-4 px-4 text-sm text-muted-foreground">{complaint.location}</td>
                         <td className="py-4 px-4">
                           <Badge
                             variant={
-                              complaint.status === 'Resolved' ? 'success' :
-                              complaint.status === 'Processing' ? 'processing' :
-                              complaint.status === 'Sent' ? 'info' : 'default'
+                              complaint.status?.toLowerCase() === 'resolved' ? 'success' :
+                              complaint.status?.toLowerCase() === 'processing' ? 'processing' :
+                              complaint.status?.toLowerCase() === 'sent' ? 'info' : 'default'
                             }
-                            pulse={complaint.status === 'Processing'}
+                            pulse={complaint.status?.toLowerCase() === 'processing'}
                           >
                             {complaint.status}
                           </Badge>
                         </td>
                         <td className="py-4 px-4 text-sm text-muted-foreground">
-                          {new Date(complaint.date).toLocaleDateString()}
+                          {new Date(complaint.timestamp).toLocaleDateString()}
                         </td>
                         <td className="py-4 px-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate('/status')}
+                          <button
+                            onClick={() => navigate('/complaint/' + complaint.complaint_id, {
+                              state: { complaint }
+                            })}
+                            className="text-teal-600 hover:text-teal-800 font-semibold 
+                                       text-sm transition-colors"
                           >
                             View
-                          </Button>
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -138,9 +151,23 @@ export function Dashboard() {
                 </table>
               </div>
             ) : (
-              <EmptyState navigate={navigate} />
+              <p className="text-center py-8 text-gray-400">
+                No complaints yet. Click "New Complaint" to get started.
+              </p>
             )}
           </Card>
+
+          <div className="bg-white rounded-xl border p-6">
+            <h2 className="text-lg font-bold mb-2">🗺️ Live Complaints Map</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              {mapPoints.length} complaints across Pakistan
+            </p>
+            <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-200">
+              <p className="text-gray-400">
+                Map coming soon — {mapPoints.length} data points loaded ✅
+              </p>
+            </div>
+          </div>
 
           <div className="grid sm:grid-cols-2 gap-4 md:gap-6">
             <Card hover className="cursor-pointer" onClick={() => navigate('/report')}>
@@ -179,9 +206,9 @@ function Sidebar({ navigate }: { navigate: any }) {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', active: true },
     { icon: PlusCircle, label: 'New Complaint', path: '/report', active: false },
-    { icon: FileText, label: 'My Complaints', path: '/dashboard', active: false },
+    { icon: FileText, label: 'My Complaints', path: '/my-complaints', active: false },
     { icon: Search, label: 'Track Status', path: '/status', active: false },
-    { icon: Settings, label: 'Settings', path: '/dashboard', active: false }
+    { icon: Settings, label: 'Settings', path: '/settings', active: false }
   ];
 
   return (

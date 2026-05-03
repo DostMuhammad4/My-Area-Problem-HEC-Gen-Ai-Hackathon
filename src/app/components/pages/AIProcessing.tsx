@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Loader2 } from 'lucide-react';
 
 export function AIProcessing() {
