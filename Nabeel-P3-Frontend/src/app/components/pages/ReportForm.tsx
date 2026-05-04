@@ -6,7 +6,7 @@ import { Input } from '../ui/Input';
 import { submitComplaint } from '../../../services/api';
 import {
   Construction, Droplet, Zap, Trash2, Trees, MoreHorizontal,
-  Mic, Upload, MapPin, ArrowLeft, ArrowRight, X
+  Mic, Square, Upload, MapPin, ArrowLeft, ArrowRight, X
 } from 'lucide-react';
 
 export function ReportForm() {
@@ -21,6 +21,7 @@ export function ReportForm() {
     photos: [] as string[]
   });
   const [isRecording, setIsRecording] = useState(false);
+  const [speechLanguage, setSpeechLanguage] = useState('en-US');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<any>(null);
   const [submitError, setSubmitError] = useState('');
@@ -58,13 +59,80 @@ export function ReportForm() {
     }
   };
 
-  // Define missing functions
-  const startRecording = () => {
-    console.log('Recording started');
-  };
+  const startVoiceInput = () => {
+    const SpeechRecognition = 
+      (window as any).SpeechRecognition || 
+      (window as any).webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      alert('Please use Chrome browser for voice input.');
+      return;
+    }
 
-  const stopRecording = () => {
-    console.log('Recording stopped');
+    // If already recording - STOP
+    if (isRecording) {
+      if ((window as any).currentRecognition) {
+        (window as any).currentRecognition.stop();
+        (window as any).currentRecognition = null;
+      }
+      setIsRecording(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US'; // Changed from 'ur-PK' to 'en-US'
+    recognition.continuous = true;        // Keep listening
+    recognition.interimResults = true;    // Show words as spoken
+    recognition.maxAlternatives = 1;
+
+    // Save reference to stop later
+    (window as any).currentRecognition = recognition;
+
+    recognition.onstart = () => setIsRecording(true);
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      if (finalTranscript) {
+        setFormData(prev => ({
+          ...prev,
+          description: prev.description 
+            ? prev.description + ' ' + finalTranscript.trim()
+            : finalTranscript.trim()
+        }));
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      if (event.error === 'not-allowed') {
+        alert('Please allow microphone access.');
+        setIsRecording(false);
+      }
+      // Ignore 'no-speech' error - just keep listening
+    };
+
+    // Auto restart if stopped unexpectedly (keeps it continuous)
+    recognition.onend = () => {
+      if ((window as any).currentRecognition) {
+        try {
+          recognition.start(); // Restart automatically
+        } catch {
+          setIsRecording(false);
+        }
+      }
+    };
+
+    recognition.start();
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,12 +178,12 @@ export function ReportForm() {
             setFormData={setFormData}
             categories={categories}
             isRecording={isRecording}
-            setIsRecording={setIsRecording}
+            speechLanguage={speechLanguage}
+            setSpeechLanguage={setSpeechLanguage}
             handlePhotoUpload={handlePhotoUpload}
             removePhoto={removePhoto}
             handleChange={handleChange}
-            startRecording={startRecording}
-            stopRecording={stopRecording}
+            startVoiceInput={startVoiceInput}
             onNext={() => setStep(2)}
           />
         )}
@@ -225,7 +293,7 @@ function ProgressBar({ step }: { step: number }) {
   );
 }
 
-function Step1({ formData, setFormData, categories, isRecording, setIsRecording, handlePhotoUpload, removePhoto, handleChange, startRecording, stopRecording, onNext }: any) {
+function Step1({ formData, setFormData, categories, isRecording, speechLanguage, setSpeechLanguage, handlePhotoUpload, removePhoto, handleChange, startVoiceInput, onNext }: any) {
   return (
     <div className="space-y-6">
       <Card>
@@ -251,7 +319,33 @@ function Step1({ formData, setFormData, categories, isRecording, setIsRecording,
       </Card>
 
       <Card>
-        <h2 className="text-xl font-bold text-foreground mb-4">Describe the Issue</h2>
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-semibold text-gray-700">
+            Describe the Issue
+          </label>
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-full">
+            <button
+              type="button"
+              onClick={() => setSpeechLanguage('en-US')}
+              className={`px-3 py-1 text-xs rounded-full font-semibold
+                          transition-all ${speechLanguage === 'en-US'
+                          ? 'bg-teal-600 text-white shadow-sm' 
+                          : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              onClick={() => setSpeechLanguage('ur-PK')}
+              className={`px-3 py-1 text-xs rounded-full font-semibold
+                          transition-all ${speechLanguage === 'ur-PK'
+                          ? 'bg-teal-600 text-white shadow-sm' 
+                          : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              اردو
+            </button>
+          </div>
+        </div>
         <div className="relative">
           <textarea
             className="w-full p-4 pr-12 border rounded-lg resize-none h-32 
@@ -262,19 +356,36 @@ function Step1({ formData, setFormData, categories, isRecording, setIsRecording,
           />
           <button
             type="button"
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onTouchStart={startRecording}
-            onTouchEnd={stopRecording}
-            className={`absolute bottom-3 right-3 p-2 rounded-full transition-all
-                   ${isRecording 
-                     ? 'bg-red-500 text-white animate-pulse' 
-                     : 'bg-teal-600 text-white hover:bg-teal-700'}`}
-            title="Hold to speak"
+            onClick={startVoiceInput}
+            className={`absolute bottom-3 right-3 p-2 rounded-full transition-all duration-200 ${isRecording ? 'bg-red-500 text-white animate-pulse scale-110' : 'bg-teal-600 text-white hover:bg-teal-700'}`}
+            title={isRecording ? 'Click to STOP' : 'Click to speak'}
           >
-            <Mic size={18} />
+            {isRecording ? (
+              <Square size={18} />
+            ) : (
+              <Mic size={18} />
+            )}
           </button>
         </div>
+        {isRecording && (
+          <div className="flex items-center gap-2 mt-2 px-1">
+            <div className="flex gap-1">
+              <div className="w-1.5 h-4 bg-red-500 rounded-full 
+                              animate-bounce" 
+                   style={{animationDelay: '0ms'}}/>
+              <div className="w-1.5 h-4 bg-red-500 rounded-full 
+                              animate-bounce" 
+                   style={{animationDelay: '150ms'}}/>
+              <div className="w-1.5 h-4 bg-red-500 rounded-full 
+                              animate-bounce" 
+                   style={{animationDelay: '300ms'}}/>
+            </div>
+            <p className="text-xs text-red-500 font-semibold">
+              Listening in {speechLanguage === 'ur-PK' ? 'Urdu' : 'English'}... 
+              Speak now
+            </p>
+          </div>
+        )}
       </Card>
 
       <Card>

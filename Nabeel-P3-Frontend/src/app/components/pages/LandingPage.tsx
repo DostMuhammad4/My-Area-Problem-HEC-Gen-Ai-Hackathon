@@ -21,6 +21,7 @@ export function LandingPage() {
       <ComplaintsShowcase />
       <SDGImpact />
       <Testimonials />
+      <AboutSection />
       <CallToAction navigate={navigate} />
       <Footer />
     </div>
@@ -41,9 +42,27 @@ function Navbar({ navigate }: { navigate: any }) {
 
           <div className="hidden lg:flex items-center gap-8">
             <a href="#home" className="text-foreground hover:text-primary transition-colors text-sm font-[\'Nunito\']">Home</a>
-            <a href="#how-it-works" className="text-foreground hover:text-primary transition-colors text-sm font-[\'Nunito\']">How It Works</a>
+            <a 
+              href="#how-it-works"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="text-foreground hover:text-primary transition-colors text-sm font-[\'Nunito\']"
+            >
+              How It Works
+            </a>
             <a href="#impact" className="text-foreground hover:text-primary transition-colors text-sm font-[\'Nunito\']">Impact</a>
-            <a href="#about" className="text-foreground hover:text-primary transition-colors text-sm font-[\'Nunito\']">About</a>
+            <a 
+              href="#about"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="text-foreground hover:text-primary transition-colors text-sm font-[\'Nunito\']"
+            >
+              About
+            </a>
           </div>
 
           <div className="flex items-center gap-2 md:gap-3">
@@ -80,7 +99,14 @@ function HeroSection({ navigate }: { navigate: any }) {
                 Report a Problem
                 <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />
               </Button>
-              <Button size="lg" variant="outline" className="w-full sm:w-auto">
+              <Button 
+                size="lg" 
+                variant="outline" 
+                onClick={() => {
+                  document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="w-full sm:w-auto"
+              >
                 See How It Works
                 <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
               </Button>
@@ -435,6 +461,51 @@ function Testimonials() {
               <p className="text-muted-foreground italic">{testimonial.quote}</p>
             </Card>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AboutSection() {
+  return (
+    <section id="about" className="py-12 md:py-20 px-4 sm:px-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-8 md:mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3 md:mb-4">About My Area Problems</h2>
+          <p className="text-base md:text-lg text-muted-foreground">Empowering Pakistani citizens through AI-driven civic engagement</p>
+        </div>
+
+        <div className="space-y-6 md:space-y-8">
+          <Card hover className="p-6 md:p-8">
+            <div className="flex gap-4 md:gap-6">
+              <Shield className="w-8 h-8 md:w-10 md:h-10 text-primary flex-shrink-0" />
+              <div>
+                <h3 className="text-lg md:text-xl font-bold text-foreground mb-2">Our Mission</h3>
+                <p className="text-base md:text-lg text-muted-foreground">We believe every citizen has the right to be heard. Our platform simplifies civic reporting by using AI to transform complaints into actionable, formal requests that reach the right authorities.</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card hover className="p-6 md:p-8">
+            <div className="flex gap-4 md:gap-6">
+              <Users className="w-8 h-8 md:w-10 md:h-10 text-primary flex-shrink-0" />
+              <div>
+                <h3 className="text-lg md:text-xl font-bold text-foreground mb-2">Community-Driven</h3>
+                <p className="text-base md:text-lg text-muted-foreground">Our platform is built for Pakistani communities. From road infrastructure to water supply, electricity to sanitation, we help you report issues that matter to your neighborhood.</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card hover className="p-6 md:p-8">
+            <div className="flex gap-4 md:gap-6">
+              <TrendingUp className="w-8 h-8 md:w-10 md:h-10 text-primary flex-shrink-0" />
+              <div>
+                <h3 className="text-lg md:text-xl font-bold text-foreground mb-2">Real Impact</h3>
+                <p className="text-base md:text-lg text-muted-foreground">Track the impact of your reports. See how your complaints lead to action, from potholes getting fixed to water issues being resolved, all in real-time.</p>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     </section>
